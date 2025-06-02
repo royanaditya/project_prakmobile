@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  final String baseUrl = 'https://dummyjson.com/products/category/mens-shirts';
+  final String baseUrl = 'https://dummyjson.com/products';
 
   // Ambil daftar produk (mens-shirts)
   Future<List<dynamic>> fetchProducts() async {
