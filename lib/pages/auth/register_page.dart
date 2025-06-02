@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'login_page.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -13,12 +14,27 @@ class _RegisterPageState extends State<RegisterPage> {
   final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
 
   void register() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    // Error handling: cek semua input harus diisi
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Semua field harus diisi!')),
+      );
+      return;
+    }
+
     // Menyimpan username dan password ke Secure Storage
-    await _secureStorage.write(key: 'username', value: _emailController.text);
-    await _secureStorage.write(key: 'password', value: _passwordController.text);
-    
+    await _secureStorage.write(key: 'username', value: email);
+    await _secureStorage.write(key: 'password', value: password);
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('username', email);
+    await prefs.setString('password', password);
+
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Pendaftaran berhasil!')),
+      const SnackBar(content: Text('Pendaftaran berhasil!')),
     );
     // Kembali ke halaman login setelah registrasi berhasil
     Navigator.pop(context);
