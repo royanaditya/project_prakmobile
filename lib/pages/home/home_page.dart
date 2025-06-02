@@ -1,3 +1,5 @@
+// home_page.dart (update buildCategorySelector agar scrollable dan tidak memaksa layout)
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../auth/login_page.dart';
@@ -19,8 +21,21 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
+  int _selectedCategoryIndex = 0;
   List<Product> cart = [];
   List<dynamic> products = [];
+  final List<String> fashionCategories = [
+    'all',
+    'mens-shirts',
+    'mens-shoes',
+    'mens-watches',
+    'womens-dresses',
+    'womens-shoes',
+    'womens-watches',
+    'womens-bags',
+    'womens-jewellery',
+    'sunglasses',
+  ];
 
   @override
   void initState() {
@@ -28,14 +43,32 @@ class _HomePageState extends State<HomePage> {
     _fetchProducts();
   }
 
-  Future<void> _fetchProducts() async {
-    final response = await http.get(Uri.parse('https://dummyjson.com/products/category/mens-shirts'));
-    if (response.statusCode == 200) {
+  Future<void> _fetchProducts({String? category}) async {
+    final selectedCategory = category ?? fashionCategories[_selectedCategoryIndex];
+    if (selectedCategory == 'all') {
+      List<dynamic> allProducts = [];
+      for (var cat in fashionCategories.skip(1)) {
+        final url = 'https://dummyjson.com/products/category/$cat';
+        final response = await http.get(Uri.parse(url));
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          allProducts.addAll(data['products']);
+        }
+      }
       setState(() {
-        products = json.decode(response.body)['products'];
+        products = allProducts;
       });
     } else {
-      throw Exception('Gagal memuat data produk');
+      final url = 'https://dummyjson.com/products/category/$selectedCategory';
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          products = data['products'];
+        });
+      } else {
+        throw Exception('Gagal memuat kategori: $selectedCategory');
+      }
     }
   }
 
@@ -88,42 +121,36 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget buildProductList() {
-    return ListView.builder(
-      itemCount: products.length,
-      itemBuilder: (context, index) {
-        final product = products[index];
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Column(
-            children: [
-              ListTile(
-                leading: Image.network(product['thumbnail'], width: 50, height: 50, fit: BoxFit.cover),
-                title: Text(product['title']),
-                subtitle: Text('Harga: \$${product['price']}'),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ProductDetailPage(product: product),
-                    ),
-                  );
-                },
+  Widget buildCategorySelector() {
+    return SizedBox(
+      height: 48,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: fashionCategories.length,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        itemBuilder: (context, index) {
+          final category = fashionCategories[index];
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: ChoiceChip(
+              label: Text(
+                category == 'all' ? 'All Items' : category.replaceAll('-', ' '),
+                style: const TextStyle(fontSize: 13),
               ),
-              Padding(
-                padding: const EdgeInsets.only(right: 16.0, bottom: 8),
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: ElevatedButton(
-                    onPressed: () => addToCart(product),
-                    child: const Text("Masukkan ke Keranjang"),
-                  ),
-                ),
-              )
-            ],
-          ),
-        );
-      },
+              selected: _selectedCategoryIndex == index,
+              selectedColor: Colors.black,
+              onSelected: (_) {
+                setState(() => _selectedCategoryIndex = index);
+                _fetchProducts(category: category);
+              },
+              backgroundColor: Colors.grey[200],
+              labelStyle: TextStyle(
+                color: _selectedCategoryIndex == index ? Colors.white : Colors.black,
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -134,46 +161,193 @@ class _HomePageState extends State<HomePage> {
         title: const Text("Beranda"),
         actions: [
           IconButton(
-            icon: const Icon(Icons.shopping_cart),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => CartPage(cart: cart)),
-              );
-            },
-          ),
-          IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _showLogoutDialog,
+            tooltip: "Logout",
           ),
         ],
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        elevation: 0,
       ),
-      body: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: Row(
+      body: SafeArea(
+        child: IndexedStack(
+          index: _selectedIndex,
+          children: [
+            // HOME PAGE
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const CircleAvatar(child: Icon(Icons.person)),
-                const SizedBox(width: 12),
-                Text("Selamat datang, ${widget.username}", style: const TextStyle(fontSize: 18)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Text(
+                    'Hello, ${widget.username} 👋\nWelcome',
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                buildCategorySelector(),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: products.isEmpty
+                      ? const Center(child: CircularProgressIndicator())
+                      : Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: GridView.builder(
+                            itemCount: products.length,
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              mainAxisSpacing: 12,
+                              crossAxisSpacing: 12,
+                              childAspectRatio: 0.62,
+                            ),
+                            itemBuilder: (context, i) {
+                              final product = products[i];
+                              return GestureDetector(
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ProductDetailPage(
+                                      product: product,
+                                      onAddToCart: (rawProduct, quantity) {
+                                        final index = cart.indexWhere((item) => item.id == rawProduct['id']);
+                                        if (index != -1) {
+                                          setState(() {
+                                            cart[index].quantity += quantity;
+                                          });
+                                        } else {
+                                          setState(() {
+                                            cart.add(Product(
+                                              id: rawProduct['id'],
+                                              name: rawProduct['title'],
+                                              price: double.parse(rawProduct['price'].toString()),
+                                              image: rawProduct['thumbnail'],
+                                              quantity: quantity,
+                                            ));
+                                          });
+                                        }
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text("Produk ditambahkan ke keranjang")),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.grey.withOpacity(0.1),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                                        child: Image.network(
+                                          product['thumbnail'],
+                                          height: 120,
+                                          width: double.infinity,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (c, o, s) => Container(
+                                            height: 120,
+                                            color: Colors.grey[200],
+                                            child: const Icon(Icons.broken_image, size: 40),
+                                          ),
+                                        ),
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.all(8.0),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              product['title'],
+                                              style: const TextStyle(
+                                                  fontWeight: FontWeight.bold, fontSize: 14),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              '\$${product['price']}',
+                                              style: const TextStyle(color: Colors.grey, fontSize: 13),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Row(
+                                              children: [
+                                                const Icon(Icons.star, size: 16, color: Colors.amber),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  product['rating'].toString(),
+                                                  style: const TextStyle(fontSize: 12),
+                                                )
+                                              ],
+                                            ),
+                                            const SizedBox(height: 8),
+                                            SizedBox(
+                                              width: double.infinity,
+                                              child: ElevatedButton.icon(
+                                                onPressed: () => addToCart(product),
+                                                icon: const Icon(Icons.add_shopping_cart, size: 18),
+                                                label: const Text("Tambah ke Keranjang"),
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: Colors.black,
+                                                  foregroundColor: Colors.white,
+                                                  minimumSize: const Size.fromHeight(36),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius: BorderRadius.circular(8),
+                                                  ),
+                                                  textStyle: const TextStyle(fontSize: 13),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                ),
               ],
             ),
-          ),
-          Expanded(
-            child: products.isEmpty
-                ? const Center(child: CircularProgressIndicator())
-                : buildProductList(),
-          )
-        ],
+            // CART PAGE
+            CartPage(cart: cart),
+            // FAVORITE PAGE (dummy)
+            const Center(child: Text("Favorite Page")),
+            // PROFILE PAGE
+            ProfilePage(),
+          ],
+        ),
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+        backgroundColor: Colors.black,
+        selectedItemColor: Colors.white,
+        unselectedItemColor: Colors.white70,
+        type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: 'Cart'),
+          BottomNavigationBarItem(icon: Icon(Icons.favorite_border), label: 'Favorite'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-          BottomNavigationBarItem(icon: Icon(Icons.help), label: 'Bantuan'),
         ],
       ),
     );
