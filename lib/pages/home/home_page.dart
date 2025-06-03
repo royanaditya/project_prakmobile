@@ -1,5 +1,3 @@
-// home_page.dart (update buildCategorySelector agar scrollable dan tidak memaksa layout)
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../auth/login_page.dart';
@@ -212,7 +210,20 @@ class _HomePageState extends State<HomePage> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(height: 8),
+                // Tambahkan poster di sini
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.asset(
+                      'assets/poster.png',
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: 140,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 buildCategorySelector(),
                 const SizedBox(height: 8),
                 Expanded(
@@ -226,7 +237,7 @@ class _HomePageState extends State<HomePage> {
                               crossAxisCount: 2,
                               mainAxisSpacing: 12,
                               crossAxisSpacing: 12,
-                              childAspectRatio: 0.62,
+                              childAspectRatio: 0.75,
                             ),
                             itemBuilder: (context, i) {
                               final product = products[i];
@@ -269,7 +280,6 @@ class _HomePageState extends State<HomePage> {
                                               price: double.parse(rawProduct['price'].toString()),
                                               image: rawProduct['thumbnail'],
                                               quantity: 1,
-                                              // tambahkan field lain jika ada
                                             ));
                                           }
                                         });
@@ -278,111 +288,100 @@ class _HomePageState extends State<HomePage> {
                                     ),
                                   ),
                                 ),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(16),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.grey.withOpacity(0.1),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
+                                child: Card(
+                                  elevation: 5,
+                                  margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(18),
                                   ),
-                                  child: Stack(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          ClipRRect(
-                                            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                                            child: Image.network(
-                                              product['thumbnail'],
-                                              height: 120,
-                                              width: double.infinity,
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (c, o, s) => Container(
-                                                height: 120,
-                                                color: Colors.grey[200],
-                                                child: const Icon(Icons.broken_image, size: 40),
-                                              ),
-                                            ),
+                                      // Gambar produk memenuhi lebar card
+                                      ClipRRect(
+                                        borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+                                        child: Image.network(
+                                          product['thumbnail'],
+                                          height: 120,
+                                          width: double.infinity,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (c, o, s) => Container(
+                                            height: 120,
+                                            width: double.infinity,
+                                            color: Colors.grey[200],
+                                            child: const Icon(Icons.broken_image, size: 40),
                                           ),
-                                          Padding(
-                                            padding: const EdgeInsets.all(8.0),
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                        ),
+                                      ),
+                                      // Isi card tanpa space kosong
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              product['title'],
+                                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Row(
                                               children: [
+                                                const Icon(Icons.star, size: 15, color: Colors.amber),
+                                                const SizedBox(width: 4),
                                                 Text(
-                                                  product['title'],
-                                                  style: const TextStyle(
-                                                      fontWeight: FontWeight.bold, fontSize: 14),
-                                                  maxLines: 2,
-                                                  overflow: TextOverflow.ellipsis,
+                                                  product['rating'].toString(),
+                                                  style: const TextStyle(fontSize: 12),
                                                 ),
-                                                const SizedBox(height: 4),
+                                                const Spacer(),
                                                 Text(
                                                   '\$${product['price']}',
-                                                  style: const TextStyle(color: Colors.grey, fontSize: 13),
-                                                ),
-                                                const SizedBox(height: 4),
-                                                Row(
-                                                  children: [
-                                                    const Icon(Icons.star, size: 16, color: Colors.amber),
-                                                    const SizedBox(width: 4),
-                                                    Text(
-                                                      product['rating'].toString(),
-                                                      style: const TextStyle(fontSize: 12),
-                                                    )
-                                                  ],
-                                                ),
-                                                const SizedBox(height: 8),
-                                                SizedBox(
-                                                  width: double.infinity,
-                                                  child: ElevatedButton.icon(
-                                                    onPressed: () => addToCart(product),
-                                                    icon: const Icon(Icons.add_shopping_cart, size: 18),
-                                                    label: const Text("Tambah ke Keranjang"),
-                                                    style: ElevatedButton.styleFrom(
-                                                      backgroundColor: Colors.black,
-                                                      foregroundColor: Colors.white,
-                                                      minimumSize: const Size.fromHeight(36),
-                                                      shape: RoundedRectangleBorder(
-                                                        borderRadius: BorderRadius.circular(8),
-                                                      ),
-                                                      textStyle: const TextStyle(fontSize: 13),
-                                                    ),
+                                                  style: const TextStyle(
+                                                    color: Colors.black,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 14,
                                                   ),
                                                 ),
                                               ],
                                             ),
-                                          ),
-                                        ],
-                                      ),
-                                      // Tombol favorite di pojok kanan atas
-                                      Positioned(
-                                        top: 8,
-                                        right: 8,
-                                        child: IconButton(
-                                          icon: Icon(
-                                            favorites.any((item) => item.id == product['id'])
-                                                ? Icons.favorite
-                                                : Icons.favorite_border,
-                                            color: favorites.any((item) => item.id == product['id'])
-                                                ? Colors.red
-                                                : null,
-                                          ),
-                                          onPressed: () {
-                                            final prod = Product(
-                                              id: product['id'],
-                                              name: product['title'],
-                                              price: double.parse(product['price'].toString()),
-                                              image: product['thumbnail'],
-                                              quantity: 1,
-                                            );
-                                            _toggleFavorite(prod);
-                                          },
+                                            const SizedBox(height: 8),
+                                            Row(
+                                              children: [
+                                                const Icon(Icons.shopping_bag, size: 14, color: Colors.grey),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  "Stock: ${product['stock'] ?? '-'}",
+                                                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                                ),
+                                                const Spacer(),
+                                                IconButton(
+                                                  icon: Icon(
+                                                    favorites.any((item) => item.id == product['id'])
+                                                        ? Icons.favorite
+                                                        : Icons.favorite_border,
+                                                    color: favorites.any((item) => item.id == product['id'])
+                                                        ? Colors.red
+                                                        : null,
+                                                    size: 18,
+                                                  ),
+                                                  onPressed: () {
+                                                    final prod = Product(
+                                                      id: product['id'],
+                                                      name: product['title'],
+                                                      price: double.parse(product['price'].toString()),
+                                                      image: product['thumbnail'],
+                                                      quantity: 1,
+                                                    );
+                                                    _toggleFavorite(prod);
+                                                  },
+                                                  padding: EdgeInsets.zero,
+                                                  constraints: const BoxConstraints(),
+                                                  tooltip: "Like",
+                                                ),
+                                              ],
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ],
