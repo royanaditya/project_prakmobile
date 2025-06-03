@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../product/favorite_page.dart';
 import '../../models/product.dart';
+import '../review/review_list_page.dart';
 
 class HomePage extends StatefulWidget {
   final String username;
@@ -210,7 +211,7 @@ class _HomePageState extends State<HomePage> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                // Tambahkan poster di sini
+                // Poster
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: ClipRRect(
@@ -237,7 +238,7 @@ class _HomePageState extends State<HomePage> {
                               crossAxisCount: 2,
                               mainAxisSpacing: 12,
                               crossAxisSpacing: 12,
-                              childAspectRatio: 0.75,
+                              childAspectRatio: 0.69,
                             ),
                             itemBuilder: (context, i) {
                               final product = products[i];
@@ -297,7 +298,6 @@ class _HomePageState extends State<HomePage> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      // Gambar produk memenuhi lebar card
                                       ClipRRect(
                                         borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
                                         child: Image.network(
@@ -313,7 +313,6 @@ class _HomePageState extends State<HomePage> {
                                           ),
                                         ),
                                       ),
-                                      // Isi card tanpa space kosong
                                       Padding(
                                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                                         child: Column(
@@ -398,6 +397,8 @@ class _HomePageState extends State<HomePage> {
             FavoritesPage(favorites: favorites),
             // PROFILE PAGE
             ProfilePage(),
+            // ULASAN PAGE
+            ReviewListPage(),
           ],
         ),
       ),
@@ -416,6 +417,7 @@ class _HomePageState extends State<HomePage> {
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.favorite_border), label: 'Favorite'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          BottomNavigationBarItem(icon: Icon(Icons.camera_alt), label: 'Ulasan'), // New tab
         ],
       ),
     );

@@ -129,7 +129,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                       children: [
                         const Icon(Icons.star, color: Colors.amber, size: 18),
                         const SizedBox(width: 4),
-                        Text("${product['rating']} (320 Reviews)",
+                        Text("${product['rating']}",
                             style: const TextStyle(fontSize: 13, color: Colors.grey)),
                       ],
                     ),
