@@ -9,6 +9,7 @@ import '../product/product_detail_page.dart';
 import '../product/cart_page.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../product/favorite_page.dart';
 import '../../models/product.dart';
 
 class HomePage extends StatefulWidget {
@@ -23,6 +24,7 @@ class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
   int _selectedCategoryIndex = 0;
   List<Product> cart = [];
+  List<Product> favorites = [];
   List<dynamic> products = [];
   final List<String> fashionCategories = [
     'all',
@@ -70,6 +72,17 @@ class _HomePageState extends State<HomePage> {
         throw Exception('Gagal memuat kategori: $selectedCategory');
       }
     }
+  }
+  
+  void _toggleFavorite(Product product) {
+    setState(() {
+      final idx = favorites.indexWhere((item) => item.id == product.id);
+      if (idx != -1) {
+        favorites.removeAt(idx);
+      } else {
+        favorites.add(product);
+      }
+    });
   }
 
   void addToCart(Map<String, dynamic> rawProduct) {
@@ -158,8 +171,20 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Beranda"),
+        title: const Text("DressGo"),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.shopping_bag),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CartPage(cart: cart),
+                ),
+              );
+            },
+            tooltip: "Keranjang",
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _showLogoutDialog,
@@ -232,6 +257,24 @@ class _HomePageState extends State<HomePage> {
                                           const SnackBar(content: Text("Produk ditambahkan ke keranjang")),
                                         );
                                       },
+                                      onToggleFavorite: (rawProduct) {
+                                        setState(() {
+                                          final idx = favorites.indexWhere((item) => item.id == rawProduct['id']);
+                                          if (idx != -1) {
+                                            favorites.removeAt(idx);
+                                          } else {
+                                            favorites.add(Product(
+                                              id: rawProduct['id'],
+                                              name: rawProduct['title'],
+                                              price: double.parse(rawProduct['price'].toString()),
+                                              image: rawProduct['thumbnail'],
+                                              quantity: 1,
+                                              // tambahkan field lain jika ada
+                                            ));
+                                          }
+                                        });
+                                      },
+                                      isFavorite: favorites.any((item) => item.id == product['id']),
                                     ),
                                   ),
                                 ),
@@ -247,70 +290,99 @@ class _HomePageState extends State<HomePage> {
                                       ),
                                     ],
                                   ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                  child: Stack(
                                     children: [
-                                      ClipRRect(
-                                        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                                        child: Image.network(
-                                          product['thumbnail'],
-                                          height: 120,
-                                          width: double.infinity,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (c, o, s) => Container(
-                                            height: 120,
-                                            color: Colors.grey[200],
-                                            child: const Icon(Icons.broken_image, size: 40),
-                                          ),
-                                        ),
-                                      ),
-                                      Padding(
-                                        padding: const EdgeInsets.all(8.0),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              product['title'],
-                                              style: const TextStyle(
-                                                  fontWeight: FontWeight.bold, fontSize: 14),
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              '\$${product['price']}',
-                                              style: const TextStyle(color: Colors.grey, fontSize: 13),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Row(
-                                              children: [
-                                                const Icon(Icons.star, size: 16, color: Colors.amber),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  product['rating'].toString(),
-                                                  style: const TextStyle(fontSize: 12),
-                                                )
-                                              ],
-                                            ),
-                                            const SizedBox(height: 8),
-                                            SizedBox(
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          ClipRRect(
+                                            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                                            child: Image.network(
+                                              product['thumbnail'],
+                                              height: 120,
                                               width: double.infinity,
-                                              child: ElevatedButton.icon(
-                                                onPressed: () => addToCart(product),
-                                                icon: const Icon(Icons.add_shopping_cart, size: 18),
-                                                label: const Text("Tambah ke Keranjang"),
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor: Colors.black,
-                                                  foregroundColor: Colors.white,
-                                                  minimumSize: const Size.fromHeight(36),
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius: BorderRadius.circular(8),
-                                                  ),
-                                                  textStyle: const TextStyle(fontSize: 13),
-                                                ),
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (c, o, s) => Container(
+                                                height: 120,
+                                                color: Colors.grey[200],
+                                                child: const Icon(Icons.broken_image, size: 40),
                                               ),
                                             ),
-                                          ],
+                                          ),
+                                          Padding(
+                                            padding: const EdgeInsets.all(8.0),
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  product['title'],
+                                                  style: const TextStyle(
+                                                      fontWeight: FontWeight.bold, fontSize: 14),
+                                                  maxLines: 2,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  '\$${product['price']}',
+                                                  style: const TextStyle(color: Colors.grey, fontSize: 13),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Row(
+                                                  children: [
+                                                    const Icon(Icons.star, size: 16, color: Colors.amber),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      product['rating'].toString(),
+                                                      style: const TextStyle(fontSize: 12),
+                                                    )
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 8),
+                                                SizedBox(
+                                                  width: double.infinity,
+                                                  child: ElevatedButton.icon(
+                                                    onPressed: () => addToCart(product),
+                                                    icon: const Icon(Icons.add_shopping_cart, size: 18),
+                                                    label: const Text("Tambah ke Keranjang"),
+                                                    style: ElevatedButton.styleFrom(
+                                                      backgroundColor: Colors.black,
+                                                      foregroundColor: Colors.white,
+                                                      minimumSize: const Size.fromHeight(36),
+                                                      shape: RoundedRectangleBorder(
+                                                        borderRadius: BorderRadius.circular(8),
+                                                      ),
+                                                      textStyle: const TextStyle(fontSize: 13),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      // Tombol favorite di pojok kanan atas
+                                      Positioned(
+                                        top: 8,
+                                        right: 8,
+                                        child: IconButton(
+                                          icon: Icon(
+                                            favorites.any((item) => item.id == product['id'])
+                                                ? Icons.favorite
+                                                : Icons.favorite_border,
+                                            color: favorites.any((item) => item.id == product['id'])
+                                                ? Colors.red
+                                                : null,
+                                          ),
+                                          onPressed: () {
+                                            final prod = Product(
+                                              id: product['id'],
+                                              name: product['title'],
+                                              price: double.parse(product['price'].toString()),
+                                              image: product['thumbnail'],
+                                              quantity: 1,
+                                            );
+                                            _toggleFavorite(prod);
+                                          },
                                         ),
                                       ),
                                     ],
@@ -323,10 +395,8 @@ class _HomePageState extends State<HomePage> {
                 ),
               ],
             ),
-            // CART PAGE
-            CartPage(cart: cart),
-            // FAVORITE PAGE (dummy)
-            const Center(child: Text("Favorite Page")),
+            // FAVORITES PAGE
+            FavoritesPage(favorites: favorites),
             // PROFILE PAGE
             ProfilePage(),
           ],
@@ -345,7 +415,6 @@ class _HomePageState extends State<HomePage> {
         type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.shopping_bag), label: 'Cart'),
           BottomNavigationBarItem(icon: Icon(Icons.favorite_border), label: 'Favorite'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],

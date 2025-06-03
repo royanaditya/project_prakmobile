@@ -3,12 +3,16 @@ import 'package:flutter/material.dart';
 
 class ProductDetailPage extends StatefulWidget {
   final Map<String, dynamic> product;
-  final Function(Map<String, dynamic> product, int quantity)? onAddToCart; // opsional
+  final Function(Map<String, dynamic> product, int quantity)? onAddToCart;
+  final Function(Map<String, dynamic> product)? onToggleFavorite;
+  final bool isFavorite;
 
   const ProductDetailPage({
     Key? key,
     required this.product,
     this.onAddToCart,
+    this.onToggleFavorite,
+    this.isFavorite = false,
   }) : super(key: key);
 
   @override
@@ -17,6 +21,13 @@ class ProductDetailPage extends StatefulWidget {
 
 class _ProductDetailPageState extends State<ProductDetailPage> {
   int quantity = 1;
+  late bool _isFavorite;
+
+  @override
+  void initState() {
+    super.initState();
+    _isFavorite = widget.isFavorite;
+  }
 
   void _addToCart() {
     if (widget.onAddToCart != null) {
@@ -26,6 +37,22 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       );
       Navigator.pop(context);
     }
+  }
+
+  void _toggleFavorite() {
+    setState(() {
+      _isFavorite = !_isFavorite;
+    });
+    if (widget.onToggleFavorite != null) {
+      widget.onToggleFavorite!(widget.product);
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(_isFavorite
+            ? 'Ditambahkan ke favorites!'
+            : 'Dihapus dari favorites!'),
+      ),
+    );
   }
 
   @override
@@ -56,9 +83,13 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                 Positioned(
                   top: 16,
                   right: 16,
-                  child: IconButton(
-                    icon: const Icon(Icons.share_outlined, color: Colors.black),
-                    onPressed: () {},
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.share_outlined, color: Colors.black),
+                        onPressed: () {},
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -84,7 +115,13 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                             ),
                           ),
                         ),
-                        const Icon(Icons.favorite_border),
+                        IconButton(
+                          icon: Icon(
+                            _isFavorite ? Icons.favorite : Icons.favorite_border,
+                            color: _isFavorite ? Colors.red : Colors.black,
+                          ),
+                          onPressed: _toggleFavorite,
+                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
