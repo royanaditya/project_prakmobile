@@ -1,10 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:project_prakmobile/models/product.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import 'review_form_page.dart';
 
 class ReviewListPage extends StatefulWidget {
-  const ReviewListPage({super.key});
+  final String username;
+  const ReviewListPage({super.key, required this.username});
 
   @override
   State<ReviewListPage> createState() => _ReviewListPageState();
@@ -13,15 +16,38 @@ class ReviewListPage extends StatefulWidget {
 class _ReviewListPageState extends State<ReviewListPage> {
   List<Product> _reviews = [];
 
+  @override
+  void initState() {
+    super.initState();
+    _loadReviews();
+  }
+
+  Future<void> _loadReviews() async {
+    final prefs = await SharedPreferences.getInstance();
+    final reviewList = prefs.getStringList('reviews_${widget.username}') ?? [];
+    setState(() {
+      _reviews =
+          reviewList.map((e) => Product.fromJson(json.decode(e))).toList();
+    });
+  }
+
+  Future<void> _saveReviews() async {
+    final prefs = await SharedPreferences.getInstance();
+    final reviewJson = _reviews.map((e) => json.encode(e.toJson())).toList();
+    await prefs.setStringList('reviews_${widget.username}', reviewJson);
+  }
+
   void _addReview(Product product) {
     setState(() {
       _reviews.insert(0, product);
+      _saveReviews();
     });
   }
 
   void _deleteReview(int index) {
     setState(() {
       _reviews.removeAt(index);
+      _saveReviews();
     });
   }
 
@@ -40,7 +66,8 @@ class _ReviewListPageState extends State<ReviewListPage> {
                 : GridView.builder(
                     padding: const EdgeInsets.all(12),
                     itemCount: _reviews.length,
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
@@ -76,34 +103,45 @@ class _ReviewListPageState extends State<ReviewListPage> {
                                     fit: BoxFit.cover,
                                     image: item.image.startsWith("http")
                                         ? NetworkImage(item.image)
-                                        : FileImage(File(item.image)) as ImageProvider,
+                                        : FileImage(File(item.image))
+                                            as ImageProvider,
                                   ),
                                 ),
                                 Padding(
                                   padding: const EdgeInsets.all(8),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Row(
                                         children: [
-                                          const Icon(Icons.star, size: 14, color: Colors.amber),
+                                          const Icon(Icons.star,
+                                              size: 14, color: Colors.amber),
                                           const SizedBox(width: 4),
                                           Text(
-                                            (item.rating?.toStringAsFixed(1) ?? '-'),
-                                            style: const TextStyle(fontSize: 13),
+                                            (item.rating?.toStringAsFixed(1) ??
+                                                '-'),
+                                            style:
+                                                const TextStyle(fontSize: 13),
                                           ),
                                         ],
                                       ),
                                       const SizedBox(height: 4),
-                                      Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                                      Text(item.category ?? '-', style: const TextStyle(color: Colors.grey)),
+                                      Text(item.name,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis),
+                                      Text(item.category ?? '-',
+                                          style: const TextStyle(
+                                              color: Colors.grey)),
                                       Text(
                                         item.brand ?? '',
                                         style: const TextStyle(fontSize: 12),
                                       ),
                                       Text(
                                         "Rp ${item.price.toStringAsFixed(0)}",
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13),
                                       ),
                                     ],
                                   ),
@@ -122,7 +160,8 @@ class _ReviewListPageState extends State<ReviewListPage> {
                                   shape: BoxShape.circle,
                                 ),
                                 padding: const EdgeInsets.all(6),
-                                child: const Icon(Icons.delete, size: 16, color: Colors.white),
+                                child: const Icon(Icons.delete,
+                                    size: 16, color: Colors.white),
                               ),
                             ),
                           ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'login_page.dart';
+import 'dart:convert';
 
 class RegisterPage extends StatefulWidget {
   @override
@@ -30,8 +31,16 @@ class _RegisterPageState extends State<RegisterPage> {
     await _secureStorage.write(key: 'password', value: password);
 
     final prefs = await SharedPreferences.getInstance();
+    // Ambil list user lama
+    List<String> users = prefs.getStringList('users') ?? [];
+    // Tambahkan user baru
+    users.add(jsonEncode({'username': email, 'password': password}));
+    await prefs.setStringList('users', users);
+
+    // Simpan juga username/password terakhir untuk auto-login
     await prefs.setString('username', email);
     await prefs.setString('password', password);
+    // Tidak perlu set isLoggedIn di sini, hanya saat login
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Pendaftaran berhasil!')),
@@ -50,11 +59,25 @@ class _RegisterPageState extends State<RegisterPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.person_add, size: 72, color: Colors.blue[600]),
+              // Ganti icon dengan logo.png
+              SizedBox(
+                height: 72,
+                width: 72,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.asset(
+                    'assets/Logo.png',
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
               SizedBox(height: 16),
               Text(
                 'Pendaftaran Pengguna',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.blue[700]),
+                style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue[700]),
               ),
               SizedBox(height: 8),
               Text(
@@ -66,7 +89,8 @@ class _RegisterPageState extends State<RegisterPage> {
                 controller: _emailController,
                 decoration: InputDecoration(
                   labelText: 'Email / Username',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
                   prefixIcon: Icon(Icons.person),
                   filled: true,
                   fillColor: Colors.white,
@@ -77,7 +101,8 @@ class _RegisterPageState extends State<RegisterPage> {
                 controller: _passwordController,
                 decoration: InputDecoration(
                   labelText: 'Password',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
                   prefixIcon: Icon(Icons.lock),
                   filled: true,
                   fillColor: Colors.white,
@@ -91,10 +116,26 @@ class _RegisterPageState extends State<RegisterPage> {
                 child: ElevatedButton(
                   onPressed: register,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue[600],
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    backgroundColor: Colors.black, // warna hitam
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: Text('Daftar', style: TextStyle(fontSize: 18)),
+                  child: const Text(
+                    'Daftar',
+                    style: TextStyle(
+                        fontSize: 18, color: Colors.white), // teks putih
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Tambahkan tombol "Sudah punya akun? Silahkan login"
+              TextButton(
+                onPressed: () {
+                  Navigator.pushReplacementNamed(context, '/login');
+                },
+                child: Text(
+                  'Sudah punya akun? Silahkan login',
+                  style: TextStyle(fontSize: 16, color: Colors.blue[600]),
                 ),
               ),
             ],

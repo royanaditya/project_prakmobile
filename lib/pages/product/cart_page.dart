@@ -1,23 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:project_prakmobile/models/product.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import 'payment_page.dart';
 
 class CartPage extends StatefulWidget {
   final List<Product> cart;
-  const CartPage({super.key, required this.cart});
+  final String username;
+  const CartPage({super.key, required this.cart, required this.username});
 
   @override
   State<CartPage> createState() => _CartPageState();
 }
 
 class _CartPageState extends State<CartPage> {
+  // Set untuk menyimpan index barang yang dipilih
+  Set<int> selectedIndexes = {};
+
   double getTotalPrice() {
-    return widget.cart.fold(0, (sum, item) => sum + (item.price * (item.quantity)));
+    // Hitung total hanya dari barang yang dipilih
+    return selectedIndexes.fold(0, (sum, idx) {
+      final item = widget.cart[idx];
+      return sum + (item.price * item.quantity);
+    });
+  }
+
+  void _saveCart() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cartJson = widget.cart.map((e) => json.encode(e.toJson())).toList();
+    await prefs.setStringList('cart_${widget.username}', cartJson);
   }
 
   void _addQuantity(int index) {
     setState(() {
       widget.cart[index].quantity += 1;
+      _saveCart();
     });
   }
 
@@ -25,6 +42,7 @@ class _CartPageState extends State<CartPage> {
     setState(() {
       if (widget.cart[index].quantity > 1) {
         widget.cart[index].quantity -= 1;
+        _saveCart();
       }
     });
   }
@@ -32,7 +50,34 @@ class _CartPageState extends State<CartPage> {
   void _removeItem(int index) {
     setState(() {
       widget.cart.removeAt(index);
+      // Hapus dari selection jika dihapus
+      selectedIndexes.remove(index);
+      // Perbaiki index selection setelah penghapusan
+      selectedIndexes = selectedIndexes
+          .map((i) => i > index ? i - 1 : i)
+          .where((i) => i < widget.cart.length)
+          .toSet();
+      _saveCart();
     });
+  }
+
+  void _toggleSelectAll() {
+    setState(() {
+      if (selectedIndexes.length == widget.cart.length) {
+        selectedIndexes.clear();
+      } else {
+        selectedIndexes =
+            Set<int>.from(List.generate(widget.cart.length, (i) => i));
+      }
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _saveCart();
+    // Default: semua barang tidak terpilih
+    selectedIndexes.clear();
   }
 
   @override
@@ -49,6 +94,7 @@ class _CartPageState extends State<CartPage> {
                     itemCount: widget.cart.length,
                     itemBuilder: (context, index) {
                       final item = widget.cart[index];
+                      final isSelected = selectedIndexes.contains(index);
                       return Card(
                         elevation: 4,
                         margin: const EdgeInsets.symmetric(vertical: 8),
@@ -60,6 +106,18 @@ class _CartPageState extends State<CartPage> {
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
+                              Checkbox(
+                                value: isSelected,
+                                onChanged: (val) {
+                                  setState(() {
+                                    if (val == true) {
+                                      selectedIndexes.add(index);
+                                    } else {
+                                      selectedIndexes.remove(index);
+                                    }
+                                  });
+                                },
+                              ),
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(12),
                                 child: Image.network(
@@ -72,7 +130,8 @@ class _CartPageState extends State<CartPage> {
                                     height: 60,
                                     width: 60,
                                     color: Colors.grey[200],
-                                    child: const Icon(Icons.broken_image, size: 32),
+                                    child: const Icon(Icons.broken_image,
+                                        size: 32),
                                   ),
                                 ),
                               ),
@@ -95,7 +154,8 @@ class _CartPageState extends State<CartPage> {
                                       children: [
                                         IconButton(
                                           icon: const Icon(Icons.remove),
-                                          onPressed: () => _reduceQuantity(index),
+                                          onPressed: () =>
+                                              _reduceQuantity(index),
                                           splashRadius: 18,
                                         ),
                                         Text('Qty: ${item.quantity}'),
@@ -120,7 +180,8 @@ class _CartPageState extends State<CartPage> {
                                     ),
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.delete, color: Colors.red),
+                                    icon: const Icon(Icons.delete,
+                                        color: Colors.red),
                                     onPressed: () => _removeItem(index),
                                     splashRadius: 18,
                                   ),
@@ -138,21 +199,58 @@ class _CartPageState extends State<CartPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        'Total: \$${getTotalPrice().toStringAsFixed(2)}',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Total: \$${getTotalPrice().toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 18),
+                            ),
+                          ),
+                          TextButton.icon(
+                            onPressed:
+                                widget.cart.isEmpty ? null : _toggleSelectAll,
+                            icon: Icon(
+                              selectedIndexes.length == widget.cart.length
+                                  ? Icons.check_box
+                                  : Icons.check_box_outline_blank,
+                              color: Colors.black,
+                            ),
+                            label: const Text(
+                              "Pilih Semua",
+                              style: TextStyle(color: Colors.black),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 12),
                       ElevatedButton(
-                        onPressed: widget.cart.isEmpty
+                        onPressed: selectedIndexes.isEmpty
                             ? null
-                            : () {
-                                Navigator.push(
+                            : () async {
+                                final selectedProducts = selectedIndexes
+                                    .map((i) => widget.cart[i])
+                                    .toList();
+                                await Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => PaymentPage(total: getTotalPrice()),
+                                    builder: (_) => PaymentPage(
+                                      total: getTotalPrice(),
+                                      selectedProducts: selectedProducts,
+                                      username: widget.username,
+                                    ),
                                   ),
                                 );
+                                setState(() {
+                                  final toRemove = selectedIndexes.toList()
+                                    ..sort((a, b) => b.compareTo(a));
+                                  for (final idx in toRemove) {
+                                    widget.cart.removeAt(idx);
+                                  }
+                                  selectedIndexes.clear();
+                                  _saveCart();
+                                });
                               },
                         child: const Text('Lanjut ke Pembayaran'),
                       ),
