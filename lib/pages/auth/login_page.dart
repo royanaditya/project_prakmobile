@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../home/home_page.dart';
 import 'register_page.dart';
 
@@ -27,10 +28,19 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     final prefs = await SharedPreferences.getInstance();
-    final savedUsername = prefs.getString('username') ?? '';
-    final savedPassword = prefs.getString('password') ?? '';
+    List<String> users = prefs.getStringList('users') ?? [];
+    bool found = false;
+    for (var userStr in users) {
+      final user = jsonDecode(userStr);
+      if (user['username'] == username && user['password'] == password) {
+        found = true;
+        break;
+      }
+    }
 
-    if (username == savedUsername && password == savedPassword) {
+    if (found) {
+      await prefs.setBool('isLoggedIn', true);
+      await prefs.setString('username', username);
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => HomePage(username: username)),
@@ -53,7 +63,18 @@ class _LoginPageState extends State<LoginPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.lock, size: 72, color: Colors.blue[600]),
+              // Ganti Icon lock dengan gambar poster.png
+              SizedBox(
+                height: 72,
+                width: 72,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.asset(
+                    'assets/Logo.png',
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
               const SizedBox(height: 16),
               Text(
                 'Selamat Datang!',
@@ -99,12 +120,15 @@ class _LoginPageState extends State<LoginPage> {
                 child: ElevatedButton(
                   onPressed: _login,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue[600],
+                    backgroundColor: Colors.black, // warna hitam
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: const Text('Login',
-                      style: TextStyle(fontSize: 18)),
+                  child: const Text(
+                    'Login',
+                    style: TextStyle(
+                        fontSize: 18, color: Colors.white), // teks putih
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -114,8 +138,7 @@ class _LoginPageState extends State<LoginPage> {
                 },
                 child: Text(
                   'Belum punya akun? Daftar di sini',
-                  style: TextStyle(
-                      fontSize: 16, color: Colors.blue[600]),
+                  style: TextStyle(fontSize: 16, color: Colors.blue[600]),
                 ),
               ),
             ],

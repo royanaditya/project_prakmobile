@@ -8,6 +8,7 @@ import '../product/cart_page.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../product/favorite_page.dart';
+import '../product/history_page.dart';
 import '../../models/product.dart';
 import '../review/review_list_page.dart';
 
@@ -42,10 +43,35 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _fetchProducts();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    // Load cart
+    final cartList = prefs.getStringList('cart_${widget.username}') ?? [];
+    cart = cartList.map((e) => Product.fromJson(json.decode(e))).toList();
+    // Load favorites
+    final favList = prefs.getStringList('favorites_${widget.username}') ?? [];
+    favorites = favList.map((e) => Product.fromJson(json.decode(e))).toList();
+    setState(() {});
+  }
+
+  Future<void> _saveCart() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cartJson = cart.map((e) => json.encode(e.toJson())).toList();
+    await prefs.setStringList('cart_${widget.username}', cartJson);
+  }
+
+  Future<void> _saveFavorites() async {
+    final prefs = await SharedPreferences.getInstance();
+    final favJson = favorites.map((e) => json.encode(e.toJson())).toList();
+    await prefs.setStringList('favorites_${widget.username}', favJson);
   }
 
   Future<void> _fetchProducts({String? category}) async {
-    final selectedCategory = category ?? fashionCategories[_selectedCategoryIndex];
+    final selectedCategory =
+        category ?? fashionCategories[_selectedCategoryIndex];
     if (selectedCategory == 'all') {
       List<dynamic> allProducts = [];
       for (var cat in fashionCategories.skip(1)) {
@@ -72,7 +98,7 @@ class _HomePageState extends State<HomePage> {
       }
     }
   }
-  
+
   void _toggleFavorite(Product product) {
     setState(() {
       final idx = favorites.indexWhere((item) => item.id == product.id);
@@ -81,6 +107,7 @@ class _HomePageState extends State<HomePage> {
       } else {
         favorites.add(product);
       }
+      _saveFavorites();
     });
   }
 
@@ -89,6 +116,7 @@ class _HomePageState extends State<HomePage> {
     if (index != -1) {
       setState(() {
         cart[index].quantity += 1;
+        _saveCart();
       });
     } else {
       setState(() {
@@ -99,16 +127,106 @@ class _HomePageState extends State<HomePage> {
           image: rawProduct['thumbnail'],
           quantity: 1,
         ));
+        _saveCart();
       });
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Produk ditambahkan ke keranjang")),
+    _showAddToCartDialog();
+  }
+
+  void _showAddToCartDialog() {
+    // Tutup dialog sebelumnya jika masih terbuka
+    if (Navigator.of(context, rootNavigator: true).canPop()) {
+      Navigator.of(context, rootNavigator: true).pop();
+    }
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: "AddedToCart",
+      transitionDuration: const Duration(milliseconds: 350),
+      pageBuilder: (context, anim1, anim2) {
+        return Align(
+          alignment: Alignment.topCenter,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 60.0),
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                width: MediaQuery.of(context).size.width * 0.9,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.green, size: 48),
+                    const SizedBox(height: 12),
+                    const Text(
+                      "Produk berhasil ditambahkan ke keranjang!",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 17,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      height: 4,
+                      width: 60,
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.black,
+                          textStyle:
+                              const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        child: const Text("Tutup"),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+      transitionBuilder: (context, anim1, anim2, child) {
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, -0.3),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: anim1, curve: Curves.easeOut)),
+          child: FadeTransition(
+            opacity: anim1,
+            child: child,
+          ),
+        );
+      },
     );
   }
 
   void _logout() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    // Hanya hapus status login, jangan hapus username/password
+    await prefs.setBool('isLoggedIn', false);
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginPage()),
@@ -119,17 +237,33 @@ class _HomePageState extends State<HomePage> {
   void _showLogoutDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Konfirmasi Logout"),
-        content: const Text("Apakah Anda yakin ingin keluar?"),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Batal")),
-          TextButton(onPressed: () {
-            Navigator.pop(context);
-            _logout();
-          }, child: const Text("Logout")),
-        ],
-      ),
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Konfirmasi Logout'),
+          content: Text('Apakah Anda yakin ingin keluar?'),
+          actions: <Widget>[
+            TextButton(
+              child: Text('Tidak'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: Text('Ya'),
+              onPressed: () async {
+                SharedPreferences prefs = await SharedPreferences.getInstance();
+                // Jangan hapus username/password, hanya set status login ke false
+                await prefs.setBool('isLoggedIn', false);
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => LoginPage()),
+                  (route) => false,
+                );
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -157,7 +291,9 @@ class _HomePageState extends State<HomePage> {
               },
               backgroundColor: Colors.grey[200],
               labelStyle: TextStyle(
-                color: _selectedCategoryIndex == index ? Colors.white : Colors.black,
+                color: _selectedCategoryIndex == index
+                    ? Colors.white
+                    : Colors.black,
               ),
             ),
           );
@@ -178,7 +314,8 @@ class _HomePageState extends State<HomePage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => CartPage(cart: cart),
+                  builder: (_) =>
+                      CartPage(cart: cart, username: widget.username),
                 ),
               );
             },
@@ -203,10 +340,12 @@ class _HomePageState extends State<HomePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   child: Text(
                     'Hello, ${widget.username} 👋\nWelcome',
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.bold),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -234,11 +373,12 @@ class _HomePageState extends State<HomePage> {
                           padding: const EdgeInsets.symmetric(horizontal: 8),
                           child: GridView.builder(
                             itemCount: products.length,
-                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 2,
                               mainAxisSpacing: 12,
                               crossAxisSpacing: 12,
-                              childAspectRatio: 0.69,
+                              childAspectRatio: 0.65,
                             ),
                             itemBuilder: (context, i) {
                               final product = products[i];
@@ -249,7 +389,8 @@ class _HomePageState extends State<HomePage> {
                                     builder: (_) => ProductDetailPage(
                                       product: product,
                                       onAddToCart: (rawProduct, quantity) {
-                                        final index = cart.indexWhere((item) => item.id == rawProduct['id']);
+                                        final index = cart.indexWhere((item) =>
+                                            item.id == rawProduct['id']);
                                         if (index != -1) {
                                           setState(() {
                                             cart[index].quantity += quantity;
@@ -259,47 +400,56 @@ class _HomePageState extends State<HomePage> {
                                             cart.add(Product(
                                               id: rawProduct['id'],
                                               name: rawProduct['title'],
-                                              price: double.parse(rawProduct['price'].toString()),
+                                              price: double.parse(
+                                                  rawProduct['price']
+                                                      .toString()),
                                               image: rawProduct['thumbnail'],
                                               quantity: quantity,
                                             ));
                                           });
                                         }
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text("Produk ditambahkan ke keranjang")),
-                                        );
+                                        _showAddToCartDialog();
                                       },
                                       onToggleFavorite: (rawProduct) {
                                         setState(() {
-                                          final idx = favorites.indexWhere((item) => item.id == rawProduct['id']);
+                                          final idx = favorites.indexWhere(
+                                              (item) =>
+                                                  item.id == rawProduct['id']);
                                           if (idx != -1) {
                                             favorites.removeAt(idx);
                                           } else {
                                             favorites.add(Product(
                                               id: rawProduct['id'],
                                               name: rawProduct['title'],
-                                              price: double.parse(rawProduct['price'].toString()),
+                                              price: double.parse(
+                                                  rawProduct['price']
+                                                      .toString()),
                                               image: rawProduct['thumbnail'],
                                               quantity: 1,
                                             ));
                                           }
                                         });
                                       },
-                                      isFavorite: favorites.any((item) => item.id == product['id']),
+                                      isFavorite: favorites.any(
+                                          (item) => item.id == product['id']),
                                     ),
                                   ),
                                 ),
                                 child: Card(
                                   elevation: 5,
-                                  margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                                  margin: const EdgeInsets.symmetric(
+                                      vertical: 8, horizontal: 4),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(18),
                                   ),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       ClipRRect(
-                                        borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+                                        borderRadius:
+                                            const BorderRadius.vertical(
+                                                top: Radius.circular(14)),
                                         child: Image.network(
                                           product['thumbnail'],
                                           height: 120,
@@ -309,29 +459,38 @@ class _HomePageState extends State<HomePage> {
                                             height: 120,
                                             width: double.infinity,
                                             color: Colors.grey[200],
-                                            child: const Icon(Icons.broken_image, size: 40),
+                                            child: const Icon(
+                                                Icons.broken_image,
+                                                size: 40),
                                           ),
                                         ),
                                       ),
                                       Padding(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 8),
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               product['title'],
-                                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                              style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 15),
                                               maxLines: 2,
                                               overflow: TextOverflow.ellipsis,
                                             ),
                                             const SizedBox(height: 6),
                                             Row(
                                               children: [
-                                                const Icon(Icons.star, size: 15, color: Colors.amber),
+                                                const Icon(Icons.star,
+                                                    size: 15,
+                                                    color: Colors.amber),
                                                 const SizedBox(width: 4),
                                                 Text(
                                                   product['rating'].toString(),
-                                                  style: const TextStyle(fontSize: 12),
+                                                  style: const TextStyle(
+                                                      fontSize: 12),
                                                 ),
                                                 const Spacer(),
                                                 Text(
@@ -347,19 +506,28 @@ class _HomePageState extends State<HomePage> {
                                             const SizedBox(height: 8),
                                             Row(
                                               children: [
-                                                const Icon(Icons.shopping_bag, size: 14, color: Colors.grey),
+                                                const Icon(Icons.shopping_bag,
+                                                    size: 14,
+                                                    color: Colors.grey),
                                                 const SizedBox(width: 4),
                                                 Text(
                                                   "Stock: ${product['stock'] ?? '-'}",
-                                                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                                  style: const TextStyle(
+                                                      fontSize: 11,
+                                                      color: Colors.grey),
                                                 ),
                                                 const Spacer(),
                                                 IconButton(
                                                   icon: Icon(
-                                                    favorites.any((item) => item.id == product['id'])
+                                                    favorites.any((item) =>
+                                                            item.id ==
+                                                            product['id'])
                                                         ? Icons.favorite
                                                         : Icons.favorite_border,
-                                                    color: favorites.any((item) => item.id == product['id'])
+                                                    color: favorites.any(
+                                                            (item) =>
+                                                                item.id ==
+                                                                product['id'])
                                                         ? Colors.red
                                                         : null,
                                                     size: 18,
@@ -368,14 +536,18 @@ class _HomePageState extends State<HomePage> {
                                                     final prod = Product(
                                                       id: product['id'],
                                                       name: product['title'],
-                                                      price: double.parse(product['price'].toString()),
-                                                      image: product['thumbnail'],
+                                                      price: double.parse(
+                                                          product['price']
+                                                              .toString()),
+                                                      image:
+                                                          product['thumbnail'],
                                                       quantity: 1,
                                                     );
                                                     _toggleFavorite(prod);
                                                   },
                                                   padding: EdgeInsets.zero,
-                                                  constraints: const BoxConstraints(),
+                                                  constraints:
+                                                      const BoxConstraints(),
                                                   tooltip: "Like",
                                                 ),
                                               ],
@@ -394,11 +566,13 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
             // FAVORITES PAGE
-            FavoritesPage(favorites: favorites),
+            FavoritesPage(favorites: favorites, onChanged: _saveFavorites),
+            // HISTORY PAGE
+            HistoryPage(username: widget.username),
             // PROFILE PAGE
             ProfilePage(),
             // ULASAN PAGE
-            ReviewListPage(),
+            ReviewListPage(username: widget.username),
           ],
         ),
       ),
@@ -415,9 +589,12 @@ class _HomePageState extends State<HomePage> {
         type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.favorite_border), label: 'Favorite'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.favorite_border), label: 'Favorite'),
+          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-          BottomNavigationBarItem(icon: Icon(Icons.camera_alt), label: 'Ulasan'), // New tab
+          BottomNavigationBarItem(
+              icon: Icon(Icons.camera_alt), label: 'Ulasan'),
         ],
       ),
     );

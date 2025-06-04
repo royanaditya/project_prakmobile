@@ -3,18 +3,19 @@ import 'package:project_prakmobile/models/product.dart';
 
 class FavoritesPage extends StatefulWidget {
   final List<Product> favorites;
-
-  const FavoritesPage({super.key, required this.favorites});
+  final VoidCallback? onChanged;
+  const FavoritesPage({super.key, required this.favorites, this.onChanged});
 
   @override
   State<FavoritesPage> createState() => _FavoritesPageState();
 }
 
 class _FavoritesPageState extends State<FavoritesPage> {
-  void _toggleFavorite(Product product) {
+  void _toggleFavorite(Product product) async {
     setState(() {
       widget.favorites.removeWhere((item) => item.id == product.id);
     });
+    if (widget.onChanged != null) widget.onChanged!();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Dihapus dari favorites!')),
     );
